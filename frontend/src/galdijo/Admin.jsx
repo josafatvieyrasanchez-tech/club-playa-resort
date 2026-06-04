@@ -125,15 +125,34 @@ export default function PanelAdmin({
   const ocupacionHoy = ocupacionPorDia[ocupacionPorDia.length - 1] || { pct: 0, ocupados: 0 };
 
   // KPI 2: ingresos por día (basado en fechaReservacion = fecha de visita)
-  const ingresosPorDia = useMemo(() => {
-    const dias = lastNDays(rangoDias);
-    return dias.map((d) => {
-      const total = reservasConfirmadas
-        .filter((r) => (r.fechaReservacion || dateKey(r.fechaConfirmada || r.fechaCreacion)) === d)
-        .reduce((acc, r) => acc + r.total, 0);
-      return { fecha: d.slice(5), ingreso: total };
-    });
-  }, [reservasConfirmadas, rangoDias]);
+ const ingresosPorDia = useMemo(() => {
+  // 1. Verificación de seguridad: si no hay reservas, devolver array vacío
+  if (!reservas || !Array.isArray(reservas)) return [];
+
+  const dias = lastNDays(rangoDias);
+  return dias.map((d) => {
+    const total = reservas
+      .filter((r) => {
+        // 2. Verificación de seguridad por objeto individual
+        if (!r) return false;
+        
+        // Ajusta aquí los estados que SÍ consideras ingresos
+        const estadosValidos = ["confirmed", "checked_in", "paid"];
+        const esValido = estadosValidos.includes(r.status);
+        
+        // Coincidencia de fecha
+        const fecha = (r.fechaReservacion || dateKey(r.fechaConfirmada || r.fechaCreacion)) === d;
+        return esValido && fecha;
+      })
+      .reduce((acc, r) => {
+        // 3. Conversión segura
+        const monto = r.total ? parseFloat(r.total) : 0;
+        return acc + monto;
+      }, 0);
+    
+    return { fecha: d.slice(5), ingreso: total };
+  });
+}, [reservas, rangoDias]);
   const ingresoTotalPeriodo = ingresosPorDia.reduce((a, b) => a + b.ingreso, 0);
 
   // KPI 3: tasa de conversión por día de creación
