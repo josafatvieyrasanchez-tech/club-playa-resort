@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^4.3.0"
+  },
+  "dependencies": {
+    "azure-maps-control": "^3.7.4",
+    "react-router-dom": "^7.16.0"
+  }
+}
