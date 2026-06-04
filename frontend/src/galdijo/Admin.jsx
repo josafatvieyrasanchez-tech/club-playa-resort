@@ -104,6 +104,20 @@ export default function PanelAdmin({
   const [rangoDias, setRangoDias] = useState(7);
   const [filtroFecha, setFiltroFecha] = useState(todayKey());
 
+  // Agrega esto dentro de tu función PanelAdmin
+const [datosCargados, setDatosCargados] = useState(false);
+
+// Este efecto va a buscar la información al encender el panel
+useEffect(() => {
+  fetch('http://localhost:3000/api/admin/datos')
+    .then(res => res.json())
+    .then(data => {
+      // Aquí actualizarías tus estados con los datos reales de la BD
+      console.log("Datos recibidos:", data);
+      setDatosCargados(true);
+    });
+}, []);
+
   // ---- Cálculos KPIs ----
   const arrayEspacios = useMemo(() => Object.values(mapasEstado).flat(), [mapasEstado]);
   const totalEspacios = arrayEspacios.length;
@@ -456,12 +470,32 @@ export default function PanelAdmin({
                     <td className="py-2 px-2">
                       <div className="flex gap-1">
                         <button
-                          data-testid={`toggle-${item.id}`}
-                          onClick={() => onAlternarEstado(playaId, item.id)}
-                          className="bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-[10px]"
-                        >
-                          {item.estado === "disponible" ? "Desactivar" : "Activar"}
-                        </button>
+  data-testid={`toggle-${item.id}`}
+  onClick={async () => {
+    try {
+      const response = await fetch('/api/admin/estado-espacio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          productoId: item.id, 
+          accion: item.estado === 'disponible' ? 'Bloquear' : 'Activar' 
+        })
+      });
+      
+      if (response.ok) {
+        window.location.reload(); // Recarga para ver cambios reales[cite: 1]
+      } else {
+        alert("Error al actualizar la base de datos");
+      }
+    } catch (error) {
+      console.error("Error de conexión:", error); //[cite: 1, 2]
+      alert("No se pudo conectar con el servidor");
+    }
+  }}
+  className="bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-[10px] text-white transition-colors"
+>
+  {item.estado === "disponible" ? "Desactivar" : "Activar"}
+</button>
                         <button
                           data-testid={`maint-${item.id}`}
                           onClick={() => onMaintenance(playaId, item.id)}
