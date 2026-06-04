@@ -126,15 +126,25 @@ export default function PanelAdmin({
 
   // KPI 2: ingresos por día (basado en fechaReservacion = fecha de visita)
   const ingresosPorDia = useMemo(() => {
-    const dias = lastNDays(rangoDias);
-    return dias.map((d) => {
-      const total = reservasConfirmadas
-        .filter((r) => (r.fechaReservacion || dateKey(r.fechaConfirmada || r.fechaCreacion)) === d)
-        .reduce((acc, r) => acc + r.total, 0);
-      return { fecha: d.slice(5), ingreso: total };
-    });
-  }, [reservasConfirmadas, rangoDias]);
-  const ingresoTotalPeriodo = ingresosPorDia.reduce((a, b) => a + b.ingreso, 0);
+  const dias = lastNDays(rangoDias);
+  return dias.map((d) => {
+    const total = reservas
+      .filter((r) => {
+        // 1. Filtrar solo las que NO están canceladas (o incluir los estados que consideres ingreso)
+        const esIngreso = r.status !== 'cancelled' && r.status !== 'pending';
+        // 2. Coincidencia de fecha
+        const fecha = (r.fechaReservacion || dateKey(r.fechaConfirmada || r.fechaCreacion)) === d;
+        return esIngreso && fecha;
+      })
+      .reduce((acc, r) => {
+        // 3. Asegurar que r.total sea un número válido
+        const monto = parseFloat(r.total) || 0;
+        return acc + monto;
+      }, 0);
+    
+    return { fecha: d.slice(5), ingreso: total };
+  });
+}, [reservas, rangoDias]); // Cambiamos la dependencia a 'reservas' general
 
   // KPI 3: tasa de conversión por día de creación
   const conversionPorDia = useMemo(() => {
