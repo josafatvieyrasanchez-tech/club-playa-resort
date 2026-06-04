@@ -1,4 +1,4 @@
-name: Deploy React App to Azure
+name: Deploy Fullstack App to Azure
 
 on:
   push:
@@ -15,15 +15,28 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Build
+      # 1. Instalar dependencias del Backend (Raíz)
+      - name: Install Backend Dependencies
+        run: npm install
+
+      # 2. Build del Frontend
+      - name: Build Frontend
         working-directory: ./frontend
         run: |
           npm install
           npm run build
 
+      # 3. Mover el build a la raíz para que el backend lo encuentre
+      # Esto pone el contenido de frontend/dist en una carpeta llamada 'dist' en la raíz
+      - name: Move Build to Root
+        run: |
+          mkdir -p dist
+          cp -r ./frontend/dist/* ./dist/
+
+      # 4. Deploy de todo el proyecto
       - name: Deploy
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'club-playa-resort-app-2026'
           publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-          package: './frontend/dist'
+          package: .

@@ -24,9 +24,9 @@ resource "azurerm_mssql_server" "sql_server" {
   location                     = "mexicocentral"
   version                      = "12.0"
   
-  # CAMBIA ESTO PARA QUE COINCIDA CON EL REAL
+
   administrator_login          = "galdijoadmin" 
-  administrator_login_password = "Password1234!" # Pon la contraseña que creaste al hacer el servidor manualmente
+  administrator_login_password = "Password1234!" 
   
   # AGREGA ESTO PARA QUE COINCIDA
   public_network_access_enabled = false 
