@@ -37,10 +37,8 @@ app.post('/api/admin/estado-espacio', async (req, res) => {
 // Esto debe ir al final, después de tus rutas de API
 
 // 1. Servir los archivos estáticos desde la carpeta dist que está al lado de index.js
-app.use(express.static(path.join(__dirname, 'dist')));
-
-// 2. Ruta comodín con la sintaxis obligatoria de Express 5
-app.get('/:any*', (req, res) => {
+// Usamos una expresión regular para atrapar TODO sin que falle el validador
+app.get(/^(?!\/api).*$/, (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
