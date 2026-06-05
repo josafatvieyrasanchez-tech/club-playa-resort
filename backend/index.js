@@ -36,8 +36,6 @@ app.post('/api/admin/estado-espacio', async (req, res) => {
 // --- CORRECCIÓN: Servir el Frontend (React) ---
 // Esto debe ir al final, después de tus rutas de API
 
-const path = require('path');
-
 // 1. Servir los archivos estáticos desde la carpeta dist que está al lado de index.js
 app.use(express.static(path.join(__dirname, 'dist')));
 
