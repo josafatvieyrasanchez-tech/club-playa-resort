@@ -20,6 +20,10 @@ const dbConfig = {
   options: { encrypt: true }
 };
 
+async function getPool() {
+  return await sql.connect(dbConfig);
+}
+
 // =====================
 // USUARIOS
 // =====================
@@ -80,124 +84,85 @@ app.post('/api/usuarios/login', async (req, res) => {
   }
 });
 
-// =====================
-// ESTADO ESPACIOS
-// =====================
-app.post('/api/admin/estado-espacio', async (req, res) => {
+// ================================
+// 2. ADMIN: DATOS COMPLETOS (CLAVE)
+// ================================
+app.get("/api/admin/datos", async (req, res) => {
   try {
-    const { productoId, accion } = req.body;
+    const pool = await getPool();
 
-    let pool = await sql.connect(dbConfig);
+    // RESERVAS
+    const reservas = await pool.request().query(`
+      SELECT 
+        r.ID,
+        r.UsuarioID,
+        r.FechaVisita,
+        r.Turno,
+        r.Total,
+        r.Estatus,
+        r.FechaCreacion,
+        u.nombre,
+        u.correo
+      FROM Reservas r
+      INNER JOIN Usuarios u ON u.ID = r.UsuarioID
+    `);
 
-    await pool.request()
-      .input('ProductoID', sql.Int, productoId)
-      .input('Accion', sql.NVarChar, accion)
-      .execute('sp_CambiarEstadoProducto');
+    // DETALLES DE RESERVA
+    const detalles = await pool.request().query(`
+      SELECT 
+        dr.ReservaID,
+        dr.ProductoID,
+        dr.Cantidad,
+        p.nombre,
+        p.precio
+      FROM DetallesReserva dr
+      INNER JOIN Productos p ON p.ID = dr.ProductoID
+    `);
 
-    res.json({ mensaje: "Estado actualizado" });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// =====================
-// 🔥 DASHBOARD PRINCIPAL
-// =====================
-app.get('/api/admin/datos', async (req, res) => {
-  try {
-    let pool = await sql.connect(dbConfig);
-
-    const reservas = await pool.request().query(`SELECT * FROM Reservas`);
-    const espacios = await pool.request().query(`SELECT * FROM Productos`);
-    const detalles = await pool.request().query(`SELECT * FROM Detalles_Reserva`);
-    const apartados = await pool.request().query(`SELECT * FROM Apartados`);
+    // ESPACIOS (MAPA)
+    const espacios = await pool.request().query(`
+      SELECT ID, Playa, Categoria, Precio, Estado
+      FROM Productos
+    `);
 
     res.json({
       reservas: reservas.recordset,
-      espacios: espacios.recordset,
       detalles: detalles.recordset,
-      apartados: apartados.recordset
+      espacios: espacios.recordset,
     });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// =====================
-// CAMBIAR ESTATUS RESERVA
-// =====================
-app.patch('/api/admin/reservas/:id', async (req, res) => {
+// ================================
+// 3. CAMBIAR ESTADO ESPACIO
+// ================================
+app.post("/api/admin/estado-espacio", async (req, res) => {
   try {
-    const { id } = req.params;
-    const { estatus } = req.body;
+    const { productoId, accion } = req.body;
+    const pool = await getPool();
 
-    let pool = await sql.connect(dbConfig);
-
-    await pool.request()
-      .input('ID', sql.Int, id)
-      .input('Estatus', sql.NVarChar, estatus)
+    await pool
+      .request()
+      .input("ProductoID", sql.Int, productoId)
+      .input("Accion", sql.NVarChar, accion)
       .query(`
-        UPDATE Reservas
-        SET Estatus = @Estatus
-        WHERE ID = @ID
+        UPDATE Productos
+        SET Estado = 
+          CASE 
+            WHEN @Accion = 'Bloquear' THEN 'bloqueado'
+            ELSE 'disponible'
+          END
+        WHERE ID = @ProductoID
       `);
 
-    res.json({ mensaje: "Reserva actualizada" });
-
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// =====================
-// INGRESOS POR DÍA
-// =====================
-app.get('/api/admin/ingresos', async (req, res) => {
-  try {
-    let pool = await sql.connect(dbConfig);
-
-    const result = await pool.request().query(`
-      SELECT 
-        FechaVisita,
-        SUM(Total) AS ingresos
-      FROM Reservas
-      WHERE Estatus IN ('paid','checked_in')
-      GROUP BY FechaVisita
-      ORDER BY FechaVisita
-    `);
-
-    res.json(result.recordset);
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// =====================
-// OCUPACIÓN POR DÍA
-// =====================
-app.get('/api/admin/ocupacion', async (req, res) => {
-  try {
-    let pool = await sql.connect(dbConfig);
-
-    const result = await pool.request().query(`
-      SELECT 
-        FechaVisita,
-        COUNT(*) AS ocupados
-      FROM Reservas
-      WHERE Estatus IN ('confirmed','paid','checked_in')
-      GROUP BY FechaVisita
-      ORDER BY FechaVisita
-    `);
-
-    res.json(result.recordset);
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // =====================
 // FRONTEND
