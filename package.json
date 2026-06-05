@@ -9,7 +9,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "mssql": "^12.5.5",
+    "mssql": "10.0.1",
     "react-router-dom": "^7.16.0"
   }
 }
