@@ -163,7 +163,7 @@ const response = await fetch('https://club-playa-resort-app-2026.azurewebsites.n
 
       if (response.ok) {
         // Si Azure guarda con éxito en SQL Server, iniciamos sesión en la app
-        onLogin(form.nombre, form.correo, form.password);
+        setPantalla("login-cliente");
       } else {
         const resultado = await response.json().catch(() => ({}));
         setError(resultado.mensaje || "Ese correo ya está registrado o los datos son inválidos.");
