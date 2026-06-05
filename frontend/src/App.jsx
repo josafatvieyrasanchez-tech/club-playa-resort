@@ -90,7 +90,7 @@ function GaldijoShell() {
           setPantalla={setPantalla}
           onLogin={async (nombre, correo, password) => {
             try {
-              const response = await fetch('/api/usuarios/registro', {
+              const response = await fetch('https://club-playa-resort-app-2026.azurewebsites.net/api/usuarios/registro', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ rol: 'cliente', Rol: 'cliente', nombre, correo, password })
