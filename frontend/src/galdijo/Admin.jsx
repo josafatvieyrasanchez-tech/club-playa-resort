@@ -148,7 +148,6 @@ export default function PanelAdmin() {
   };
 
   // Filtros tabla
-  const [filtroStatus, setFiltroStatus] = useState("all");
   const reservasFiltradas = reservas.filter(
     (r) => filtroStatus === "all" || r.status === filtroStatus
   );
