@@ -84,44 +84,31 @@ function GaldijoShell() {
       );
 
     // 3. REGISTRO DE NUEVOS CLIENTES
+    // 3. REGISTRO DE NUEVOS CLIENTES
     if (pantalla === "registro")
       return (
         <RegistroCliente
           setPantalla={setPantalla}
-          onLogin={async (rol, nombre, correo, password) => {
+          onLogin={async (nombre, correo, password) => {
             try {
               const response = await fetch('/api/usuarios/registro', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rol, nombre, correo, password })
+                body: JSON.stringify({ rol: 'cliente', nombre, correo, password })
               });
               if (response.ok) {
-                setUsuario({ autenticado: true, rol, nombre, correo });
+                setUsuario({ autenticado: true, rol: 'cliente', nombre, correo });
               } else {
                 alert("Error al registrar usuario en SQL Server.");
               }
             } catch (err) {
               console.error("Error de registro:", err);
               // Si falla la red, entra en modo contingencia para dejar probar la UI
-              setUsuario({ autenticado: true, rol, nombre, correo });
+              setUsuario({ autenticado: true, rol: 'cliente', nombre, correo });
             }
           }}
         />
       );
-
-    return <Landing setPantalla={setPantalla} />;
-  }
-
-  return (
-    <AplicacionPrincipal
-      usuario={usuario}
-      onLogout={() => {
-        setUsuario({ autenticado: false, rol: null, nombre: "", correo: "" });
-        setPantalla("landing");
-      }}
-    />
-  );
-}
 
 // ============================================================
 // App principal (Manejo de Estados Asíncronos de Azure)
