@@ -93,7 +93,7 @@ function GaldijoShell() {
               const response = await fetch('/api/usuarios/registro', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rol: 'cliente', nombre, correo, password })
+                body: JSON.stringify({ rol: 'cliente', Rol: 'cliente', nombre, correo, password })
               });
               if (response.ok) {
                 setUsuario({ autenticado: true, rol: 'cliente', nombre, correo });
@@ -121,7 +121,6 @@ function GaldijoShell() {
     />
   );
 }
-
 // ============================================================
 // App principal (Manejo de Estados Asíncronos de Azure)
 // ============================================================
