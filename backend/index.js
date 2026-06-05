@@ -1,17 +1,17 @@
-const express = require('express');
-const sql = require('mssql');
-const cors = require('cors');
-const path = require('path');
-require('dotenv').config();
+const express = require("express");
+const sql = require("mssql");
+const cors = require("cors");
+const path = require("path");
+require("dotenv").config();
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// =====================
-// CONEXIÓN BD
-// =====================
+// ================================
+// CONFIG SQL AZURE
+// ================================
 const dbConfig = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
@@ -30,65 +30,11 @@ async function getPool() {
   return await sql.connect(dbConfig);
 }
 
-// =====================
+//
+// =======================================================
 // USUARIOS
-// =====================
-app.post('/api/usuarios/registro', async (req, res) => {
-  try {
-    const { nombre, correo, password, Rol } = req.body;
-
-    let pool = await sql.connect(dbConfig);
-
-    const existe = await pool.request()
-      .input('correo', sql.NVarChar, correo)
-      .query(`SELECT ID FROM Usuarios WHERE correo = @correo`);
-
-    if (existe.recordset.length > 0) {
-      return res.status(400).json({ mensaje: 'El correo ya está registrado' });
-    }
-
-    await pool.request()
-      .input('nombre', sql.NVarChar, nombre)
-      .input('correo', sql.NVarChar, correo)
-      .input('password', sql.NVarChar, password)
-      .input('Rol', sql.NVarChar, Rol || 'cliente')
-      .query(`
-        INSERT INTO Usuarios (nombre, correo, password, Rol, FechaRegistro)
-        VALUES (@nombre, @correo, @password, @Rol, GETDATE())
-      `);
-
-    res.status(201).json({ mensaje: 'Usuario registrado correctamente' });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/usuarios/login', async (req, res) => {
-  try {
-    const { correo, password } = req.body;
-
-    let pool = await sql.connect(dbConfig);
-
-    const result = await pool.request()
-      .input('correo', sql.NVarChar, correo)
-      .input('password', sql.NVarChar, password)
-      .query(`
-        SELECT ID, nombre, correo, Rol
-        FROM Usuarios
-        WHERE correo = @correo AND password = @password
-      `);
-
-    if (result.recordset.length === 0) {
-      return res.status(401).json({ mensaje: 'Credenciales inválidas' });
-    }
-
-    res.json(result.recordset[0]);
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// =======================================================
+//
 
 app.post("/api/usuarios/registro", async (req, res) => {
   try {
@@ -270,16 +216,25 @@ app.get("/api/admin/export-reservas", async (req, res) => {
   }
 });
 
+//
+// =======================================================
+// FRONTEND BUILD SERVIDO (AZURE)
+// =======================================================
+//
 
-// =====================
-// FRONTEND
-// =====================
-app.use(express.static(path.join(__dirname, '../dist')));
+app.use(express.static(path.join(__dirname, "../dist")));
 
 app.get(/^(?!\/api).*$/, (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
+  res.sendFile(path.join(__dirname, "../dist/index.html"));
 });
 
-// =====================
+//
+// =======================================================
+// START SERVER
+// =======================================================
+//
+
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log("Servidor corriendo en puerto", PORT));
+app.listen(PORT, () => {
+  console.log("Servidor corriendo en puerto " + PORT);
+});
