@@ -137,17 +137,17 @@ export function RegistroCliente({ setPantalla, onLogin }) {
 
     try {
       // Petición directa a la URL real del backend en Azure
-      const response = await fetch('https://club-playa-resort-app-2026.azurewebsites.net/api/usuarios/registro', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          nombre: form.nombre, 
-          correo: form.correo, 
-          password: form.password,
-          rol: 'cliente',
-          Rol: 'cliente' // Enviamos ambos por el nombre de la columna en tu Azure SQL
-        })
-      });
+    // Dentro de RegistroCliente, modifica el bloque del fetch para dejarlo así:
+const response = await fetch('https://club-playa-resort-app-2026.azurewebsites.net/api/usuarios/registro', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ 
+    nombre: form.nombre, 
+    correo: form.correo, 
+    password: form.password,
+    Rol: 'cliente' // Con R mayúscula como tu columna de la base de datos
+  })
+});
 
       if (response.ok) {
         // Si Azure guarda con éxito en SQL Server, iniciamos sesión en la app
@@ -211,6 +211,7 @@ export function RegistroCliente({ setPantalla, onLogin }) {
     </div>
   );
 }
+
 export function LoginAdmin({ setPantalla, onLogin }) {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
@@ -221,19 +222,18 @@ export function LoginAdmin({ setPantalla, onLogin }) {
     setError("");
 
     try {
-      // Usamos la URL completa de producción para evitar el error 404
       const response = await fetch('https://club-playa-resort-app-2026.azurewebsites.net/api/usuarios/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Mandamos exactamente lo que la base de datos y tu backend esperan en minúsculas
         body: JSON.stringify({ correo, password })
       });
 
       if (response.ok) {
         const datos = await response.json();
-        
-        // Verificamos que el usuario que intenta entrar realmente tenga el rol de admin
+        // Validamos el rol tal cual venga del servidor
         if (datos.rol === 'admin' || datos.Rol === 'admin') {
-          onLogin(datos.nombre, datos.correo); // Modificado para el formato de tu App.jsx corregido
+          onLogin(datos.nombre || "Administrador", datos.correo || correo);
         } else {
           setError("Acceso denegado. No eres administrador.");
         }
@@ -249,27 +249,19 @@ export function LoginAdmin({ setPantalla, onLogin }) {
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
       <form onSubmit={submit} className="max-w-md w-full bg-slate-900/80 border border-amber-500/30 rounded-3xl p-8">
-        <button
-          type="button"
-          onClick={() => setPantalla("landing")}
-          className="text-xs font-mono text-amber-400 mb-6"
-        >
+        <button type="button" onClick={() => setPantalla("landing")} className="text-xs font-mono text-amber-400 mb-6">
           &larr; Volver
         </button>
-        <div className="text-[10px] uppercase tracking-[0.3em] text-amber-400 font-mono">
-          🔐 Restricted · Admin
-        </div>
+        <div className="text-[10px] uppercase tracking-[0.3em] text-amber-400 font-mono">🔐 Restricted · Admin</div>
         <h2 className="text-2xl font-black text-amber-100 mt-1">Consola Administrativa</h2>
         <div className="space-y-3 mt-5">
           <input
-            data-testid="login-admin-correo"
             value={correo}
             onChange={(e) => setCorreo(e.target.value)}
             placeholder="admin@galdijo.com"
             className="w-full bg-slate-950 border border-amber-900/40 rounded-lg p-3.5 text-amber-100 text-sm font-mono focus:outline-none focus:border-amber-500"
           />
           <input
-            data-testid="login-admin-pass"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -277,21 +269,10 @@ export function LoginAdmin({ setPantalla, onLogin }) {
             className="w-full bg-slate-950 border border-amber-900/40 rounded-lg p-3.5 text-amber-100 text-sm font-mono focus:outline-none focus:border-amber-500"
           />
         </div>
-        {error && (
-          <div className="text-red-400 text-xs mt-3 bg-red-500/10 rounded p-2 border border-red-500/30">
-            ⚠ {error}
-          </div>
-        )}
-        <button
-          data-testid="login-admin-submit"
-          type="submit"
-          className="mt-5 w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-lg text-xs uppercase tracking-widest"
-        >
+        {error && <div className="text-red-400 text-xs mt-3 bg-red-500/10 rounded p-2 border border-red-500/30">⚠ {error}</div>}
+        <button type="submit" className="mt-5 w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-lg text-xs uppercase tracking-widest">
           Acceder al Panel
         </button>
-        <p className="text-[10px] text-slate-600 text-center mt-3 font-mono">
-          admin@galdijo.com / Admin2026!
-        </p>
       </form>
     </div>
   );
