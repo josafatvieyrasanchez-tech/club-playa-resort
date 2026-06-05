@@ -47,14 +47,39 @@ export function LoginCliente({ setPantalla, onLogin, CLIENTE_DEMO }) {
       onLogin("cliente", CLIENTE_DEMO.nombre, CLIENTE_DEMO.correo);
       return;
     }
-    const reg = JSON.parse(localStorage.getItem("galdijo_clientes") || "[]");
-    const found = reg.find((c) => c.correo === correo && c.password === password);
-    if (found) {
-      onLogin("cliente", found.nombre, found.correo);
+    const submit = async (e) => {
+  e.preventDefault();
+  setError("");
+
+  try {
+    const response = await fetch(
+      "https://club-playa-resort-app-2026.azurewebsites.net/api/usuarios/login",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          correo,
+          password,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.mensaje || "Correo o contraseña incorrectos.");
       return;
     }
-    setError("Correo o contraseña incorrectos.");
-  };
+
+    onLogin(correo, password);
+
+  } catch (err) {
+    console.error(err);
+    setError("Error al conectar con Azure.");
+  }
+};
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
       <form onSubmit={submit} className="max-w-md w-full bg-slate-900/60 border border-slate-800 rounded-3xl p-8">
@@ -233,7 +258,7 @@ export function LoginAdmin({ setPantalla, onLogin }) {
         const datos = await response.json();
         // Validamos el rol tal cual venga del servidor
         if (datos.rol === 'admin' || datos.Rol === 'admin') {
-          onLogin(datos.nombre || "Administrador", datos.correo || correo);
+          onLogin(correo, password);
         } else {
           setError("Acceso denegado. No eres administrador.");
         }
