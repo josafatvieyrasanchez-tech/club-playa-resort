@@ -1,23 +1,10 @@
 import React, { useMemo, useState, useEffect } from "react";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
+import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
-// ============================================================
-// Helpers
-// ============================================================
+// --- Helpers (se mantienen igual) ---
 const fmt = (n) => `$${(n || 0).toLocaleString("es-MX")}`;
 const dateKey = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : "—");
 const todayKey = () => new Date().toISOString().slice(0, 10);
-
 const lastNDays = (n) => {
   const arr = [];
   for (let i = n - 1; i >= 0; i--) {
@@ -28,78 +15,12 @@ const lastNDays = (n) => {
   return arr;
 };
 
-// CSV builder con columnas mínimas requeridas
-const buildCSV = (reservas) => {
-  const headers = [
-    "reservation_id",
-    "space_id",
-    "space_code",
-    "type",
-    "date",
-    "turn",
-    "user_id",
-    "user_email",
-    "status",
-    "amount",
-    "currency",
-    "created_at",
-    "confirmed_at",
-    "checked_in_at",
-  ];
-  const rows = [];
-  reservas.forEach((r) => {
-    r.items.forEach((it) => {
-      rows.push([
-        r.id,
-        it.tipo === "espacio" ? it.item.id : `PASE-${it.item.id}`,
-        it.item.id,
-        it.tipo === "espacio" ? it.item.categoria : it.item.tipo,
-        r.fechaReservacion || dateKey(r.fechaCreacion), // fecha real de la visita
-        it.turno || "Día Completo",
-        r.cliente?.correo || "",
-        r.cliente?.correo || "",
-        r.status,
-        it.precio,
-        "MXN",
-        r.fechaCreacion || "",
-        r.fechaConfirmada || "",
-        r.fechaCheckIn || "",
-      ]);
-    });
-  });
-  const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  return [headers.join(","), ...rows.map((row) => row.map(esc).join(","))].join("\n");
-};
-
-const downloadFile = (filename, content, mime = "text/csv;charset=utf-8") => {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  // Estrategia compatible con iframes sandbox: anchor + click + fallback a window.open
-  try {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.rel = "noopener";
-    a.target = "_self";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  } catch (e) {
-    // Fallback: abrir en nueva pestaña — el navegador ofrecerá descargar / guardar como
-    window.open(url, "_blank");
-  }
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
-};
-
-// ============================================================
-// Panel Admin
-// ============================================================
+// --- Panel Admin ---
 export default function PanelAdmin() {
   const [data, setData] = useState({ reservas: [], detalles: [], espacios: [] });
   const [rangoDias, setRangoDias] = useState(7);
   const [filtroStatus, setFiltroStatus] = useState("all");
 
-  // Efecto para cargar datos reales desde Azure
   useEffect(() => {
     fetch("https://club-playa-resort-app-2026.azurewebsites.net/api/admin/datos")
       .then(res => res.json())
@@ -115,17 +36,15 @@ export default function PanelAdmin() {
       }));
   }, []);
 
-  // Función para ejecutar acciones en la BD
   const ejecutarAccion = async (url, body) => {
     await fetch(url, { 
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify(body) 
     });
-    window.location.reload(); 
+    window.location.reload();
   };
 
-  // --- Mapeo de datos para tus componentes visuales ---
   const reservas = data.reservas;
   const mapasEstado = useMemo(() => {
     const mapa = {};
@@ -135,7 +54,7 @@ export default function PanelAdmin() {
     });
     return mapa;
   }, [data.espacios]);
-
+  
   // ---- Cálculos KPIs ----
   const arrayEspacios = useMemo(() => Object.values(mapasEstado || {}).flat(), [mapasEstado]);
   const totalEspacios = arrayEspacios.length;
