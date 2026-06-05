@@ -108,6 +108,7 @@ const buildEspacios = (prefix, centro) => {
     { id: `${prefix}-P4`, zona: "vip", pos: offset(centro, -0.00015, 0.00000) },
     { id: `${prefix}-P5`, zona: "vip", pos: offset(centro, -0.00025, -0.00008) },
     { id: `${prefix}-P6`, zona: "vip", pos: offset(centro, -0.00025, 0.00008) },
+    { id: `${prefix}-P7`, zona: "vip", pos: offset(centro, 0.00075, 0.00040) },
   ].map((p, i) => ({ ...p, categoria: "Palapa", nombre: `Palapa Imperial ${i + 1}`, precio: 2200, img: IMG_PALAPA }));
   const camastros = [
     { id: `${prefix}-M1`, zona: "general", pos: offset(centro, 0.00007, -0.00010) },
