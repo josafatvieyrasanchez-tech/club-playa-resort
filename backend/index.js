@@ -36,9 +36,14 @@ app.post('/api/admin/estado-espacio', async (req, res) => {
 // --- CORRECCIÓN: Servir el Frontend (React) ---
 // Esto debe ir al final, después de tus rutas de API
 
+const path = require('path');
+
+// 1. Servir los archivos estáticos desde la carpeta dist que está al lado de index.js
 app.use(express.static(path.join(__dirname, 'dist')));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+
+// 2. Ruta comodín con la sintaxis obligatoria de Express 5
+app.get('/:any*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // --- CORRECCIÓN: Puerto dinámico para Azure ---
