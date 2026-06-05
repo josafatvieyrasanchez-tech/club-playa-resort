@@ -119,29 +119,49 @@ export function LoginCliente({ setPantalla, onLogin, CLIENTE_DEMO }) {
   );
 }
 
-export function RegistroCliente({ setPantalla, onLogin, CLIENTE_DEMO, ADMIN_CREDENCIALES }) {
+export function RegistroCliente({ setPantalla, onLogin }) {
   const [form, setForm] = useState({ nombre: "", correo: "", password: "", password2: "" });
   const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(false);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     setError("");
+
+    // Validaciones básicas en el frontend
+    if (!form.nombre.trim()) return setError("El nombre es obligatorio.");
     if (form.password.length < 6) return setError("Mínimo 6 caracteres.");
     if (form.password !== form.password2) return setError("Las contraseñas no coinciden.");
-    
-    const reg = JSON.parse(localStorage.getItem("galdijo_clientes") || "[]");
-    if (
-      reg.some((c) => c.correo === form.correo) ||
-      form.correo === ADMIN_CREDENCIALES.correo ||
-      form.correo === CLIENTE_DEMO.correo
-    )
-      return setError("Ese correo ya está registrado.");
-      
-    reg.push({ nombre: form.nombre, correo: form.correo, password: form.password });
-    localStorage.setItem("galdijo_clientes", JSON.stringify(reg));
-    
-    // CORRECCIÓN: Quitamos la palabra "cliente" y mandamos el password real
-    onLogin(form.nombre, form.correo, form.password);
+
+    setCargando(true);
+
+    try {
+      // Petición directa a la URL real del backend en Azure
+      const response = await fetch('https://club-playa-resort-app-2026.azurewebsites.net/api/usuarios/registro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          nombre: form.nombre, 
+          correo: form.correo, 
+          password: form.password,
+          rol: 'cliente',
+          Rol: 'cliente' // Enviamos ambos por el nombre de la columna en tu Azure SQL
+        })
+      });
+
+      if (response.ok) {
+        // Si Azure guarda con éxito en SQL Server, iniciamos sesión en la app
+        onLogin(form.nombre, form.correo, form.password);
+      } else {
+        const resultado = await response.json().catch(() => ({}));
+        setError(resultado.mensaje || "Ese correo ya está registrado o los datos son inválidos.");
+      }
+    } catch (err) {
+      console.error("Error al registrar cliente:", err);
+      setError("Error al conectar con el servidor de Azure.");
+    } finally {
+      setCargando(false);
+    }
   };
 
   return (
@@ -164,12 +184,13 @@ export function RegistroCliente({ setPantalla, onLogin, CLIENTE_DEMO, ADMIN_CRED
           ].map(({ k, t, ph }) => (
             <input
               key={k}
+              disabled={cargando}
               data-testid={`reg-${k}`}
               type={t}
               placeholder={ph}
               value={form[k]}
               onChange={(e) => setForm({ ...form, [k]: e.target.value })}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 disabled:opacity-50"
             />
           ))}
         </div>
@@ -181,27 +202,50 @@ export function RegistroCliente({ setPantalla, onLogin, CLIENTE_DEMO, ADMIN_CRED
         <button
           data-testid="reg-submit"
           type="submit"
-          className="mt-5 w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-black py-3 rounded-xl text-xs uppercase tracking-widest"
+          disabled={cargando}
+          className="mt-5 w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-black py-3 rounded-xl text-xs uppercase tracking-widest disabled:opacity-50"
         >
-          Crear cuenta y entrar
+          {cargando ? "Guardando en Azure..." : "Crear cuenta y entrar"}
         </button>
       </form>
     </div>
   );
 }
-export function LoginAdmin({ setPantalla, onLogin, ADMIN_CREDENCIALES }) {
+export function LoginAdmin({ setPantalla, onLogin }) {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const submit = (e) => {
+
+  const submit = async (e) => {
     e.preventDefault();
     setError("");
-    if (correo === ADMIN_CREDENCIALES.correo && password === ADMIN_CREDENCIALES.password) {
-      onLogin("admin", "Administrador", correo);
-      return;
+
+    try {
+      // Usamos la URL completa de producción para evitar el error 404
+      const response = await fetch('https://club-playa-resort-app-2026.azurewebsites.net/api/usuarios/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correo, password })
+      });
+
+      if (response.ok) {
+        const datos = await response.json();
+        
+        // Verificamos que el usuario que intenta entrar realmente tenga el rol de admin
+        if (datos.rol === 'admin' || datos.Rol === 'admin') {
+          onLogin(datos.nombre, datos.correo); // Modificado para el formato de tu App.jsx corregido
+        } else {
+          setError("Acceso denegado. No eres administrador.");
+        }
+      } else {
+        setError("Credenciales de administrador inválidas.");
+      }
+    } catch (err) {
+      console.error("Error en login admin:", err);
+      setError("Error al conectar con el servidor de Azure.");
     }
-    setError("Credenciales inválidas.");
   };
+
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
       <form onSubmit={submit} className="max-w-md w-full bg-slate-900/80 border border-amber-500/30 rounded-3xl p-8">
@@ -210,7 +254,7 @@ export function LoginAdmin({ setPantalla, onLogin, ADMIN_CREDENCIALES }) {
           onClick={() => setPantalla("landing")}
           className="text-xs font-mono text-amber-400 mb-6"
         >
-          ← Volver
+          &larr; Volver
         </button>
         <div className="text-[10px] uppercase tracking-[0.3em] text-amber-400 font-mono">
           🔐 Restricted · Admin
