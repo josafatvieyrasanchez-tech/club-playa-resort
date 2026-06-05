@@ -40,14 +40,7 @@ export function LoginCliente({ setPantalla, onLogin, CLIENTE_DEMO }) {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const submit = (e) => {
-    e.preventDefault();
-    setError("");
-    if (correo === CLIENTE_DEMO.correo && password === CLIENTE_DEMO.password) {
-      onLogin("cliente", CLIENTE_DEMO.nombre, CLIENTE_DEMO.correo);
-      return;
-    }
-    const submit = async (e) => {
+ const submit = async (e) => {
   e.preventDefault();
   setError("");
 
@@ -56,28 +49,22 @@ export function LoginCliente({ setPantalla, onLogin, CLIENTE_DEMO }) {
       "https://club-playa-resort-app-2026.azurewebsites.net/api/usuarios/login",
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          correo,
-          password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo, password }),
       }
     );
 
     const data = await response.json();
 
     if (!response.ok) {
-      setError(data.mensaje || "Correo o contraseña incorrectos.");
+      setError(data.mensaje || "Credenciales incorrectas");
       return;
     }
 
     onLogin(correo, password);
 
   } catch (err) {
-    console.error(err);
-    setError("Error al conectar con Azure.");
+    setError("Error de conexión con el servidor");
   }
 };
   return (
