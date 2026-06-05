@@ -38,6 +38,9 @@ app.post('/api/admin/estado-espacio', async (req, res) => {
 
 // 1. Servir los archivos estáticos desde la carpeta dist que está al lado de index.js
 // Usamos una expresión regular para atrapar TODO sin que falle el validador
+
+app.use(express.static(path.join(__dirname, '../dist')));
+
 app.get(/^(?!\/api).*$/, (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
