@@ -122,11 +122,13 @@ export function LoginCliente({ setPantalla, onLogin, CLIENTE_DEMO }) {
 export function RegistroCliente({ setPantalla, onLogin, CLIENTE_DEMO, ADMIN_CREDENCIALES }) {
   const [form, setForm] = useState({ nombre: "", correo: "", password: "", password2: "" });
   const [error, setError] = useState("");
+
   const submit = (e) => {
     e.preventDefault();
     setError("");
     if (form.password.length < 6) return setError("Mínimo 6 caracteres.");
     if (form.password !== form.password2) return setError("Las contraseñas no coinciden.");
+    
     const reg = JSON.parse(localStorage.getItem("galdijo_clientes") || "[]");
     if (
       reg.some((c) => c.correo === form.correo) ||
@@ -134,10 +136,14 @@ export function RegistroCliente({ setPantalla, onLogin, CLIENTE_DEMO, ADMIN_CRED
       form.correo === CLIENTE_DEMO.correo
     )
       return setError("Ese correo ya está registrado.");
+      
     reg.push({ nombre: form.nombre, correo: form.correo, password: form.password });
     localStorage.setItem("galdijo_clientes", JSON.stringify(reg));
-    onLogin("cliente", form.nombre, form.correo);
+    
+    // CORRECCIÓN: Quitamos la palabra "cliente" y mandamos el password real
+    onLogin(form.nombre, form.correo, form.password);
   };
+
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
       <form onSubmit={submit} className="max-w-md w-full bg-slate-900/60 border border-slate-800 rounded-3xl p-8">
@@ -146,7 +152,7 @@ export function RegistroCliente({ setPantalla, onLogin, CLIENTE_DEMO, ADMIN_CRED
           onClick={() => setPantalla("login-cliente")}
           className="text-xs font-mono text-emerald-400 mb-6"
         >
-          ← Volver al login
+          &larr; Volver al login
         </button>
         <h2 className="text-2xl font-black text-slate-100">Crear cuenta</h2>
         <div className="space-y-3 mt-5">
@@ -183,7 +189,6 @@ export function RegistroCliente({ setPantalla, onLogin, CLIENTE_DEMO, ADMIN_CRED
     </div>
   );
 }
-
 export function LoginAdmin({ setPantalla, onLogin, ADMIN_CREDENCIALES }) {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
