@@ -96,124 +96,34 @@ app.post("/api/usuarios/login", async (req, res) => {
 //
 // =======================================================
 // ADMIN DASHBOARD (LO MÁS IMPORTANTE)
-// =======================================================
-//
+// =======================================================-
 
 app.get("/api/admin/datos", async (req, res) => {
   try {
     const pool = await getPool();
-
-    const reservas = await pool.request().query(`
-      SELECT 
-        r.ID as reservaId,
-        r.UsuarioID,
-        r.FechaVisita,
-        r.Total,
-        r.Estatus,
-        r.FechaCreacion,
-        u.nombre,
-        u.correo
-      FROM Reservas r
-      INNER JOIN Usuarios u ON u.ID = r.UsuarioID
-      ORDER BY r.FechaCreacion DESC
-    `);
-
-    const detalles = await pool.request().query(`
-      SELECT 
-        d.ReservaID,
-        d.ProductoID,
-        d.Cantidad,
-        p.Nombre,
-        p.Precio
-      FROM DetallesReserva d
-      INNER JOIN Productos p ON p.ID = d.ProductoID
-    `);
-
-    const espacios = await pool.request().query(`
-      SELECT ID, PlayaID, Categoria, Precio, Estado
-      FROM Espacios
-    `);
-
-    res.json({
-      reservas: reservas.recordset,
-      detalles: detalles.recordset,
-      espacios: espacios.recordset,
-    });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    const reservas = await pool.request().query(`SELECT r.*, u.nombre, u.correo FROM Reservas r JOIN Usuarios u ON u.ID = r.UsuarioID`);
+    const detalles = await pool.request().query(`SELECT d.*, p.Nombre as PNombre FROM DetallesReserva d JOIN Productos p ON p.ID = d.ProductoID`);
+    const espacios = await pool.request().query(`SELECT * FROM Espacios`);
+    res.json({ reservas: reservas.recordset, detalles: detalles.recordset, espacios: espacios.recordset });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-//
-// =======================================================
-// CAMBIO DE ESTADO ESPACIOS (MAPA)
-// =======================================================
-//
+app.post("/api/admin/cancelar-reserva", async (req, res) => {
+  try {
+    const { reservaId } = req.body;
+    const pool = await getPool();
+    await pool.request().input("id", sql.Int, reservaId).query("UPDATE Reservas SET Estatus = 'cancelled' WHERE ID = @id");
+    res.json({ mensaje: "Cancelada" });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 app.post("/api/admin/estado-espacio", async (req, res) => {
   try {
     const { productoId, accion } = req.body;
-
     const pool = await getPool();
-
-    await pool.request()
-      .input("ProductoID", sql.Int, productoId)
-      .input("Accion", sql.NVarChar, accion)
-      .execute("sp_CambiarEstadoProducto");
-
+    await pool.request().input("ProductoID", sql.Int, productoId).input("Accion", sql.NVarChar, accion).execute("sp_CambiarEstadoProducto");
     res.json({ mensaje: "Estado actualizado" });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-//
-// =======================================================
-// EXPORT CSV REAL (LO QUE PEDISTE)
-// =======================================================
-//
-
-app.get("/api/admin/export-reservas", async (req, res) => {
-  try {
-    const pool = await getPool();
-
-    const result = await pool.request().query(`
-      SELECT 
-        r.ID as ReservaID,
-        u.nombre,
-        u.correo,
-        r.FechaVisita,
-        r.Total,
-        r.Estatus,
-        p.Nombre as Producto,
-        d.Cantidad
-      FROM Reservas r
-      INNER JOIN Usuarios u ON u.ID = r.UsuarioID
-      INNER JOIN DetallesReserva d ON d.ReservaID = r.ID
-      INNER JOIN Productos p ON p.ID = d.ProductoID
-    `);
-
-    const rows = result.recordset;
-
-    const header = "ReservaID,Nombre,Correo,FechaVisita,Total,Estatus,Producto,Cantidad";
-
-    const csv = [
-      header,
-      ...rows.map(r =>
-        `${r.ReservaID},${r.nombre},${r.correo},${r.FechaVisita},${r.Total},${r.Estatus},${r.Producto},${r.Cantidad}`
-      )
-    ].join("\n");
-
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", "attachment; filename=reservas.csv");
-
-    res.send(csv);
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 //
