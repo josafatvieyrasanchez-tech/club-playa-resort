@@ -1,268 +1,120 @@
-import React, { useMemo, useState, useEffect } from "react";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
-
-// =======================
-// HELPERS
-// =======================
-const fmt = (n) => `$${(n || 0).toLocaleString("es-MX")}`;
-const todayKey = () => new Date().toISOString().slice(0, 10);
-
-const lastNDays = (n) => {
-  const arr = [];
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    arr.push(d.toISOString().slice(0, 10));
-  }
-  return arr;
-};
-
-const downloadFile = (filename, content, mime = "text/csv;charset=utf-8") => {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
-};
-
-// =======================
-// PANEL ADMIN
-// =======================
 export default function PanelAdmin() {
-  const [reservas, setReservas] = useState([]);
-  const [detalles, setDetalles] = useState([]);
-  const [espacios, setEspacios] = useState({});
+  const [data, setData] = useState({
+    reservas: [],
+    detalles: [],
+    espacios: []
+  });
 
-  const [rangoDias, setRangoDias] = useState(7);
-  const [filtroStatus, setFiltroStatus] = useState("all");
+  const [loading, setLoading] = useState(true);
 
-  // =======================
-  // FETCH BACKEND REAL
-  // =======================
   useEffect(() => {
     fetch("https://club-playa-resort-app-2026.azurewebsites.net/api/admin/datos")
-      .then((res) => res.json())
-      .then((data) => {
-        setReservas(data.reservas || []);
-        setDetalles(data.detalles || []);
-
-        const mapa = {};
-        (data.espacios || []).forEach((e) => {
-          if (!mapa[e.Playa]) mapa[e.Playa] = [];
-          mapa[e.Playa].push({
-            id: e.ID,
-            categoria: e.Categoria,
-            precio: e.Precio,
-            estado: e.Estado,
-          });
-        });
-
-        setEspacios(mapa);
+      .then(r => r.json())
+      .then(d => {
+        setData(d);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Error admin:", err);
+        setLoading(false);
       });
   }, []);
 
-  // =======================
-  // FILTROS BASE
-  // =======================
-  const reservasFiltradas = useMemo(() => {
-    return reservas.filter(
-      (r) => filtroStatus === "all" || r.Estatus === filtroStatus
-    );
-  }, [reservas, filtroStatus]);
+  const reservas = data.reservas || [];
+  const detalles = data.detalles || [];
+  const espacios = data.espacios || [];
 
-  const reservasConfirmadas = reservas.filter(
-    (r) => r.Estatus === "confirmed" || r.Estatus === "checked_in"
+  // ======================
+  // KPIs SEGUROS
+  // ======================
+  const ingresosTotales = reservas.reduce((acc, r) => acc + (r.Total || 0), 0);
+
+  const pendientes = reservas.filter(r => r.Estatus === "pending").length;
+
+  const confirmadas = reservas.filter(r =>
+    r.Estatus === "confirmed" || r.Estatus === "checked_in"
   );
 
-  // =======================
-  // OCUPACIÓN
-  // =======================
-  const ocupacionPorDia = useMemo(() => {
-    const dias = lastNDays(rangoDias);
-
-    return dias.map((d) => {
-      const count = reservasConfirmadas.filter(
-        (r) => r.FechaVisita?.slice(0, 10) === d
-      ).length;
-
-      return {
-        fecha: d.slice(5),
-        ocupados: count,
-      };
-    });
-  }, [reservasConfirmadas, rangoDias]);
-
-  // =======================
-  // INGRESOS
-  // =======================
-  const ingresosPorDia = useMemo(() => {
-    const dias = lastNDays(rangoDias);
-
-    return dias.map((d) => {
-      const total = reservas
-        .filter((r) => r.Estatus === "confirmed" || r.Estatus === "checked_in")
-        .filter((r) => r.FechaVisita?.slice(0, 10) === d)
-        .reduce((acc, r) => acc + (Number(r.Total) || 0), 0);
-
-      return {
-        fecha: d.slice(5),
-        ingreso: total,
-      };
-    });
-  }, [reservas, rangoDias]);
-
-  const ingresoTotal = ingresosPorDia.reduce((a, b) => a + b.ingreso, 0);
-
-  // =======================
-  // CSV (CORREGIDO)
-  // =======================
-  const buildCSV = () => {
-    const headers = [
-      "ID",
-      "ReservaID",
-      "Correo",
-      "FechaVisita",
-      "Total",
-      "Productos",
-    ];
-
-    const rows = reservas.map((r) => {
-      const productos = detalles
-        .filter((d) => d.ReservaID === r.ID)
-        .map((d) => `${d.nombre} x${d.Cantidad}`)
-        .join(" | ");
-
-      return [
-        r.ID,
-        r.ID,
-        r.correo,
-        r.FechaVisita,
-        r.Total,
-        productos,
-      ];
-    });
-
-    return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-  };
-
+  // ======================
+  // CSV EXPORT (BACKEND)
+  // ======================
   const exportCSV = () => {
-    downloadFile(`reservas_${todayKey()}.csv`, buildCSV());
+    window.open(
+      "https://club-playa-resort-app-2026.azurewebsites.net/api/admin/export-reservas",
+      "_blank"
+    );
   };
 
-  // =======================
-  // UI
-  // =======================
+  if (loading) {
+    return <div className="text-white p-10">Cargando panel...</div>;
+  }
+
   return (
-    <div className="max-w-7xl mx-auto px-6 py-10 text-white">
+    <div className="text-white p-6">
 
-      {/* HEADER */}
-      <div className="flex justify-between mb-6">
-        <h2 className="text-3xl font-black">Panel Admin</h2>
-
-        <button
-          onClick={exportCSV}
-          className="bg-emerald-500 text-black px-4 py-2 rounded"
-        >
-          Descargar CSV
-        </button>
-      </div>
+      <h1 className="text-2xl font-bold mb-4">Panel Admin</h1>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-slate-900 p-4 rounded">
-          <p>Ingresos</p>
-          <h2 className="text-2xl">{fmt(ingresoTotal)}</h2>
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-slate-800 p-4 rounded">
+          Ingresos<br />
+          <b>${ingresosTotales}</b>
         </div>
 
-        <div className="bg-slate-900 p-4 rounded">
-          <p>Reservas</p>
-          <h2 className="text-2xl">{reservas.length}</h2>
+        <div className="bg-slate-800 p-4 rounded">
+          Pendientes<br />
+          <b>{pendientes}</b>
+        </div>
+
+        <div className="bg-slate-800 p-4 rounded">
+          Confirmadas<br />
+          <b>{confirmadas.length}</b>
         </div>
       </div>
 
-      {/* GRAFICAS */}
-      <div className="grid md:grid-cols-2 gap-4 mb-6">
-
-        <div className="bg-slate-900 p-4 rounded">
-          <h3>Ocupación</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={ocupacionPorDia}>
-              <XAxis dataKey="fecha" />
-              <YAxis />
-              <Tooltip />
-              <Line dataKey="ocupados" stroke="#22d3ee" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="bg-slate-900 p-4 rounded">
-          <h3>Ingresos</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={ingresosPorDia}>
-              <XAxis dataKey="fecha" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="ingreso" fill="#10b981" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-      </div>
-
-      {/* FILTRO */}
-      <select
-        className="bg-slate-800 p-2 rounded mb-4"
-        value={filtroStatus}
-        onChange={(e) => setFiltroStatus(e.target.value)}
+      {/* BOTÓN EXPORT */}
+      <button
+        onClick={exportCSV}
+        className="bg-green-500 px-4 py-2 rounded text-black font-bold"
       >
-        <option value="all">Todas</option>
-        <option value="pending">Pendientes</option>
-        <option value="confirmed">Confirmadas</option>
-        <option value="cancelled">Canceladas</option>
-        <option value="checked_in">Check-in</option>
-      </select>
+        Descargar CSV
+      </button>
 
-      {/* TABLA RESERVAS */}
-      <div className="bg-slate-900 p-4 rounded">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-gray-400">
-              <th>ID</th>
-              <th>Correo</th>
-              <th>Fecha</th>
-              <th>Total</th>
-              <th>Status</th>
+      {/* RESERVAS */}
+      <h2 className="mt-6 font-bold">Reservas</h2>
+
+      <table className="w-full text-sm mt-2">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Correo</th>
+            <th>Fecha</th>
+            <th>Total</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {reservas.map(r => (
+            <tr key={r.reservaId}>
+              <td>{r.reservaId}</td>
+              <td>{r.correo}</td>
+              <td>{r.FechaVisita}</td>
+              <td>{r.Total}</td>
+              <td>{r.Estatus}</td>
             </tr>
-          </thead>
+          ))}
+        </tbody>
+      </table>
 
-          <tbody>
-            {reservasFiltradas.map((r) => (
-              <tr key={r.ID} className="border-t border-slate-700">
-                <td>{r.ID}</td>
-                <td>{r.correo}</td>
-                <td>{r.FechaVisita?.slice(0, 10)}</td>
-                <td>{fmt(r.Total)}</td>
-                <td>{r.Estatus}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* ESPACIOS */}
+      <h2 className="mt-6 font-bold">Espacios</h2>
+
+      <div className="grid grid-cols-4 gap-2">
+        {espacios.map(e => (
+          <div key={e.ID} className="bg-slate-800 p-2 rounded">
+            {e.ID} - {e.Estado}
+          </div>
+        ))}
       </div>
 
     </div>
