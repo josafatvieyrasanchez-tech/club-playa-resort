@@ -1,43 +1,116 @@
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
+
+// =========================
+// HELPERS (los tuyos intactos)
+// =========================
+const fmt = (n) => `$${(n || 0).toLocaleString("es-MX")}`;
+const dateKey = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : "—");
+const todayKey = () => new Date().toISOString().slice(0, 10);
+
+const lastNDays = (n) => {
+  const arr = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    arr.push(d.toISOString().slice(0, 10));
+  }
+  return arr;
+};
+
+// =========================
+// PANEL ADMIN CORREGIDO
+// =========================
 export default function PanelAdmin() {
   const [data, setData] = useState({
     reservas: [],
     detalles: [],
-    espacios: []
+    espacios: [],
   });
 
   const [loading, setLoading] = useState(true);
+  const [rangoDias, setRangoDias] = useState(7);
 
+  // =========================
+  // FETCH BACKEND REAL
+  // =========================
   useEffect(() => {
     fetch("https://club-playa-resort-app-2026.azurewebsites.net/api/admin/datos")
-      .then(r => r.json())
-      .then(d => {
-        setData(d);
+      .then((res) => res.json())
+      .then((d) => {
+        setData({
+          reservas: d.reservas || [],
+          detalles: d.detalles || [],
+          espacios: d.espacios || [],
+        });
         setLoading(false);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error("Error admin:", err);
         setLoading(false);
       });
   }, []);
 
-  const reservas = data.reservas || [];
-  const detalles = data.detalles || [];
-  const espacios = data.espacios || [];
+  const reservas = data.reservas;
+  const espaciosRaw = data.espacios;
 
-  // ======================
-  // KPIs SEGUROS
-  // ======================
-  const ingresosTotales = reservas.reduce((acc, r) => acc + (r.Total || 0), 0);
+  // =========================
+  // RECONSTRUIR MAPA (CRÍTICO)
+  // =========================
+  const mapasEstado = useMemo(() => {
+    const mapa = {};
 
-  const pendientes = reservas.filter(r => r.Estatus === "pending").length;
+    espaciosRaw.forEach((e) => {
+      if (!mapa[e.PlayaID]) mapa[e.PlayaID] = [];
 
-  const confirmadas = reservas.filter(r =>
-    r.Estatus === "confirmed" || r.Estatus === "checked_in"
+      mapa[e.PlayaID].push({
+        id: e.ID,
+        categoria: e.Categoria,
+        precio: e.Precio,
+        estado: e.Estado,
+      });
+    });
+
+    return mapa;
+  }, [espaciosRaw]);
+
+  // =========================
+  // FILTROS SEGUROS
+  // =========================
+  const reservasConfirmadas = reservas.filter(
+    (r) => r?.Estatus === "confirmed" || r?.Estatus === "checked_in"
   );
 
-  // ======================
-  // CSV EXPORT (BACKEND)
-  // ======================
+  const reservasPending = reservas.filter((r) => r?.Estatus === "pending");
+
+  // =========================
+  // KPIs ESTABLES
+  // =========================
+  const ingresosTotales = reservas.reduce(
+    (acc, r) => acc + (Number(r.Total) || 0),
+    0
+  );
+
+  const ocupacionHoy = reservasConfirmadas.length;
+
+  const tasaConversion =
+    reservas.length > 0
+      ? Math.round((reservasConfirmadas.length / reservas.length) * 100)
+      : 0;
+
+  // =========================
+  // CSV EXPORT (REAL BACKEND)
+  // =========================
   const exportCSV = () => {
     window.open(
       "https://club-playa-resort-app-2026.azurewebsites.net/api/admin/export-reservas",
@@ -45,74 +118,97 @@ export default function PanelAdmin() {
     );
   };
 
+  // =========================
+  // LOADING SAFE
+  // =========================
   if (loading) {
-    return <div className="text-white p-10">Cargando panel...</div>;
+    return <div className="text-white p-10">Cargando panel admin...</div>;
   }
 
+  // =========================
+  // UI (TU PANEL RESTAURADO)
+  // =========================
   return (
-    <div className="text-white p-6">
+    <div className="max-w-7xl mx-auto px-6 py-10 text-slate-100">
 
-      <h1 className="text-2xl font-bold mb-4">Panel Admin</h1>
+      {/* HEADER */}
+      <div className="flex justify-between mb-6">
+        <h1 className="text-3xl font-black">Consola de Control</h1>
+
+        <button
+          onClick={exportCSV}
+          className="bg-emerald-500 text-black px-4 py-2 rounded font-bold"
+        >
+          Descargar CSV
+        </button>
+      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-slate-800 p-4 rounded">
-          Ingresos<br />
-          <b>${ingresosTotales}</b>
+
+        <div className="bg-slate-900 p-4 rounded">
+          <p>Ingresos</p>
+          <b>{fmt(ingresosTotales)}</b>
         </div>
 
-        <div className="bg-slate-800 p-4 rounded">
-          Pendientes<br />
-          <b>{pendientes}</b>
+        <div className="bg-slate-900 p-4 rounded">
+          <p>Reservas activas</p>
+          <b>{reservas.length}</b>
         </div>
 
-        <div className="bg-slate-800 p-4 rounded">
-          Confirmadas<br />
-          <b>{confirmadas.length}</b>
+        <div className="bg-slate-900 p-4 rounded">
+          <p>Conversión</p>
+          <b>{tasaConversion}%</b>
         </div>
+
       </div>
 
-      {/* BOTÓN EXPORT */}
-      <button
-        onClick={exportCSV}
-        className="bg-green-500 px-4 py-2 rounded text-black font-bold"
-      >
-        Descargar CSV
-      </button>
-
       {/* RESERVAS */}
-      <h2 className="mt-6 font-bold">Reservas</h2>
+      <h2 className="font-bold mb-2">Reservas</h2>
 
-      <table className="w-full text-sm mt-2">
+      <table className="w-full text-sm mb-8">
         <thead>
           <tr>
             <th>ID</th>
+            <th>Cliente</th>
             <th>Correo</th>
-            <th>Fecha</th>
             <th>Total</th>
             <th>Status</th>
           </tr>
         </thead>
+
         <tbody>
-          {reservas.map(r => (
-            <tr key={r.reservaId}>
+          {reservas.map((r) => (
+            <tr key={r.reservaId} className="border-t border-slate-800">
               <td>{r.reservaId}</td>
+              <td>{r.nombre}</td>
               <td>{r.correo}</td>
-              <td>{r.FechaVisita}</td>
-              <td>{r.Total}</td>
+              <td>{fmt(r.Total)}</td>
               <td>{r.Estatus}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {/* ESPACIOS */}
-      <h2 className="mt-6 font-bold">Espacios</h2>
+      {/* MAPA ESPACIOS */}
+      <h2 className="font-bold mb-2">Mapa de Espacios</h2>
 
-      <div className="grid grid-cols-4 gap-2">
-        {espacios.map(e => (
-          <div key={e.ID} className="bg-slate-800 p-2 rounded">
-            {e.ID} - {e.Estado}
+      <div className="space-y-4">
+        {Object.entries(mapasEstado || {}).map(([playa, items]) => (
+          <div key={playa} className="bg-slate-900 p-3 rounded">
+            <h3 className="font-bold mb-2 capitalize">{playa}</h3>
+
+            <div className="grid grid-cols-4 gap-2">
+              {items.map((e) => (
+                <div
+                  key={e.id}
+                  className="p-2 rounded bg-slate-800 text-xs"
+                >
+                  <div>{e.id}</div>
+                  <div>{e.estado}</div>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
