@@ -35,6 +35,120 @@ app.post('/api/admin/estado-espacio', async (req, res) => {
 
 // --- CORRECCIÓN: Servir el Frontend (React) ---
 // Esto debe ir al final, después de tus rutas de API
+// ================================
+// REGISTRO DE USUARIOS
+// ================================
+app.post('/api/usuarios/registro', async (req, res) => {
+    try {
+
+        const { nombre, correo, password, Rol } = req.body;
+
+        let pool = await sql.connect(dbConfig);
+
+        const existe = await pool.request()
+            .input('correo', sql.NVarChar, correo)
+            .query(`
+                SELECT ID
+                FROM Usuarios
+                WHERE correo = @correo
+            `);
+
+        if (existe.recordset.length > 0) {
+            return res.status(400).json({
+                mensaje: 'El correo ya está registrado'
+            });
+        }
+
+        await pool.request()
+            .input('nombre', sql.NVarChar, nombre)
+            .input('correo', sql.NVarChar, correo)
+            .input('password', sql.NVarChar, password)
+            .input('Rol', sql.NVarChar, Rol || 'cliente')
+            .query(`
+                INSERT INTO Usuarios
+                (
+                    nombre,
+                    correo,
+                    password,
+                    Rol,
+                    FechaRegistro
+                )
+                VALUES
+                (
+                    @nombre,
+                    @correo,
+                    @password,
+                    @Rol,
+                    GETDATE()
+                )
+            `);
+
+        res.status(201).json({
+            mensaje: 'Usuario registrado correctamente'
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            error: err.message
+        });
+
+    }
+});
+
+// ================================
+// LOGIN DE USUARIOS
+// ================================
+app.post('/api/usuarios/login', async (req, res) => {
+
+    try {
+
+        const { correo, password } = req.body;
+
+        let pool = await sql.connect(dbConfig);
+
+        const resultado = await pool.request()
+            .input('correo', sql.NVarChar, correo)
+            .input('password', sql.NVarChar, password)
+            .query(`
+                SELECT
+                    ID,
+                    nombre,
+                    correo,
+                    Rol
+                FROM Usuarios
+                WHERE correo = @correo
+                AND password = @password
+            `);
+
+        if (resultado.recordset.length === 0) {
+
+            return res.status(401).json({
+                mensaje: 'Credenciales inválidas'
+            });
+
+        }
+
+        res.json({
+            id: resultado.recordset[0].ID,
+            nombre: resultado.recordset[0].nombre,
+            correo: resultado.recordset[0].correo,
+            rol: resultado.recordset[0].Rol
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            error: err.message
+        });
+
+    }
+
+});
 
 // 1. Servir los archivos estáticos desde la carpeta dist que está al lado de index.js
 // Usamos una expresión regular para atrapar TODO sin que falle el validador
