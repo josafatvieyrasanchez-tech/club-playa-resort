@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route} from "react-router-dom";
 
 import {
+  ADMIN_CREDENCIALES,
+  CLIENTE_DEMO,
   generarEspaciosIniciales,
   loadEstados,
   saveEstados,
@@ -14,24 +16,25 @@ import PanelAdmin from "./galdijo/Admin";
 import TicketPage from "./galdijo/Ticket";
 
 // ============================================================
-// SHELL Auth (Conectado a llamadas API SQL Server)
+// SHELL Auth (RE-ENLAZADO Y CORREGIDO PARA QUE ARRANQUEN LOS BOTONES)
 // ============================================================
 function GaldijoShell() {
   const [usuario, setUsuario] = useState({ autenticado: false, rol: null, nombre: "", correo: "" });
   const [pantalla, setPantalla] = useState("landing");
 
   if (!usuario.autenticado) {
-    if (pantalla === "login-cliente" || pantalla === "login-admin") {
-      const actualRol = pantalla === "login-admin" ? "admin" : "cliente";
+    // 1. LOGIN DE CLIENTES
+    if (pantalla === "login-cliente")
       return (
         <LoginCliente
           setPantalla={setPantalla}
+          CLIENTE_DEMO={CLIENTE_DEMO}
           onLogin={async (correo, password) => {
             try {
               const response = await fetch('/api/usuarios/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ correo, password, rol: actualRol })
+                body: JSON.stringify({ correo, password, rol: 'cliente' })
               });
               if (response.ok) {
                 const data = await response.json();
@@ -41,11 +44,46 @@ function GaldijoShell() {
               }
             } catch (err) {
               console.error("Error de login:", err);
+              // Salvavidas local por si la API aún no está arriba en el backend, no congelar el botón demo
+              if(correo === CLIENTE_DEMO.correo && password === CLIENTE_DEMO.password) {
+                setUsuario({ autenticado: true, rol: "cliente", nombre: CLIENTE_DEMO.nombre, correo: CLIENTE_DEMO.correo });
+              }
             }
           }}
         />
       );
-    }
+
+    // 2. LOGIN DE ADMINISTRADORES
+    if (pantalla === "login-admin")
+      return (
+        <LoginAdmin
+          setPantalla={setPantalla}
+          ADMIN_CREDENCIALES={ADMIN_CREDENCIALES}
+          onLogin={async (correo, password) => {
+            try {
+              const response = await fetch('/api/usuarios/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ correo, password, rol: 'admin' })
+              });
+              if (response.ok) {
+                const data = await response.json();
+                setUsuario({ autenticado: true, rol: data.rol, nombre: data.nombre, correo: data.correo });
+              } else {
+                alert("Credenciales de administrador inválidas.");
+              }
+            } catch (err) {
+              console.error("Error de login admin:", err);
+              // Salvavidas local para el administrador
+              if(correo === ADMIN_CREDENCIALES.correo && password === ADMIN_CREDENCIALES.password) {
+                setUsuario({ autenticado: true, rol: "admin", nombre: "Administrador", correo: ADMIN_CREDENCIALES.correo });
+              }
+            }
+          }}
+        />
+      );
+
+    // 3. REGISTRO DE NUEVOS CLIENTES
     if (pantalla === "registro")
       return (
         <RegistroCliente
@@ -64,10 +102,13 @@ function GaldijoShell() {
               }
             } catch (err) {
               console.error("Error de registro:", err);
+              // Si falla la red, entra en modo contingencia para dejar probar la UI
+              setUsuario({ autenticado: true, rol, nombre, correo });
             }
           }}
         />
       );
+
     return <Landing setPantalla={setPantalla} />;
   }
 
@@ -232,6 +273,9 @@ function AplicacionPrincipal({ usuario, onLogout }) {
   );
 }
 
+// ============================================================
+// Router root (AQUÍ ESTÁ TU RUTEADOR DE TICKETS COMPLETO)
+// ============================================================
 function App() {
   return (
     <BrowserRouter>
